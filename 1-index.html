@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>FORGE</title>
+<style>
+:root{
+  --bg:#0a0a0c; --card:#141417; --card2:#1c1c21; --line:#26262c;
+  --tx:#f4f4f1; --dim:#8f8f98; --acc:#d8ff4a; --acc-soft:rgba(216,255,74,.12);
+  --r:20px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;overflow-x:hidden;background:var(--bg);color:var(--tx);
+  font:16px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+#app{max-width:480px;margin:0 auto;padding:0 16px calc(110px + env(safe-area-inset-bottom))}
+
+header{padding:30px 6px 20px;display:flex;justify-content:space-between;align-items:baseline}
+.brand{font-size:14px;font-weight:800;letter-spacing:.4em}
+.brand i{font-style:normal;color:var(--acc)}
+.date{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-bottom:14px}
+.card.flat{background:none;border-style:dashed}
+
+.eyebrow{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);margin:0 6px 10px}
+
+.exname{font-size:21px;font-weight:800;letter-spacing:-.01em}
+.exsub{font-size:12.5px;color:var(--dim);margin-top:3px}
+.badge{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.12em;color:#0a0a0c;
+  background:var(--acc);border-radius:99px;padding:3px 9px;margin-left:8px;vertical-align:2px}
+.lastline{margin-top:12px;font-size:13px;color:var(--dim)}
+.lastline b{color:var(--tx);font-weight:600;font-variant-numeric:tabular-nums}
+
+.set{border-top:1px solid var(--line)}
+.set:first-child{border-top:none}
+.setrow{display:flex;align-items:center;gap:14px;min-height:62px;padding:8px 2px;width:100%;text-align:left}
+.setnum{flex:none;width:32px;height:32px;border-radius:50%;border:1.5px solid var(--line);
+  display:grid;place-items:center;font-size:13px;font-weight:700;color:var(--dim)}
+.set.done .setnum{background:var(--acc);border-color:var(--acc);color:#0a0a0c}
+.setval{flex:1;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.set.done .setval{color:var(--dim);text-decoration:none}
+.setval .u{font-size:13px;font-weight:500;color:var(--dim);margin:0 2px}
+.setval .x{color:var(--dim);font-weight:400;margin:0 6px;font-size:16px}
+.chev{color:var(--dim);font-size:14px;transform:rotate(90deg)}
+.set.done .chev{transform:none;color:var(--acc)}
+
+.editor{padding:6px 2px 16px}
+.steprow{display:flex;gap:10px;margin-bottom:10px}
+.stepper{position:relative;flex:1;background:var(--card2);border-radius:16px;padding:19px 6px 7px;display:flex;align-items:center;justify-content:space-between}
+.stepper .lab{position:absolute;top:5px;left:0;right:0;text-align:center;font-size:9.5px;letter-spacing:.18em;color:var(--dim);text-transform:uppercase;pointer-events:none}
+.stepper button{flex:none;width:46px;height:48px;border-radius:12px;background:var(--card);
+  border:1px solid var(--line);font-size:22px;font-weight:600;line-height:1;display:grid;place-items:center}
+.stepper button:active{background:var(--acc-soft)}
+.stepv{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;min-width:50px;text-align:center}
+.stepv small{font-size:12px;color:var(--dim);font-weight:500}
+.btn{width:100%;height:58px;border-radius:16px;font-size:17px;font-weight:800;letter-spacing:.01em}
+.btn.acc{background:var(--acc);color:#0a0a0c}
+.btn.ghost{background:none;border:1.5px dashed var(--line);color:var(--dim);font-weight:600}
+.btn:active{transform:scale(.985)}
+
+.addset{width:100%;padding:13px;color:var(--dim);font-size:14px;font-weight:600}
+.addset:active{color:var(--tx)}
+
+.divider{height:1px;background:var(--line);margin:18px -20px 0}
+
+.summary-big{font-size:34px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.summary-sub{color:var(--dim);font-size:13px;margin-top:2px}
+.statrow{display:flex;gap:10px;margin-top:16px}
+.stat{flex:1;background:var(--card2);border-radius:14px;padding:12px 14px}
+.stat .k{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.stat .v{font-size:19px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums}
+
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 14px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;padding:9px 16px;border-radius:99px;border:1.5px solid var(--line);
+  font-size:13.5px;font-weight:600;color:var(--dim);white-space:nowrap}
+.chip.on{border-color:var(--acc);color:var(--acc);background:var(--acc-soft)}
+
+.hrow{display:flex;align-items:center;gap:12px;padding:15px 2px;border-top:1px solid var(--line)}
+.hrow:first-child{border-top:none}
+.hrow .d{flex:none;width:92px;white-space:nowrap;font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+.hrow .s{flex:1;font-size:16.5px;font-weight:700;font-variant-numeric:tabular-nums}
+.hrow .s small{font-weight:500;color:var(--dim);font-size:12.5px}
+.hrow .del{color:var(--dim);font-size:16px;padding:6px}
+
+.field{display:flex;align-items:center;justify-content:space-between;padding:16px 2px;border-top:1px solid var(--line)}
+.field:first-child{border-top:none}
+.field .fk{font-size:15px;font-weight:600}
+.field .fs{font-size:12px;color:var(--dim);margin-top:2px}
+.ministep{display:flex;align-items:center;gap:4px}
+.ministep button{width:44px;height:44px;border-radius:12px;background:var(--card2);border:1px solid var(--line);font-size:22px}
+.ministep .v{min-width:64px;text-align:center;font-size:20px;font-weight:800;font-variant-numeric:tabular-nums}
+
+.notein{width:100%;background:var(--card2);border:1px solid var(--line);border-radius:14px;
+  color:var(--tx);font:inherit;font-size:15px;padding:14px;margin:10px 0;outline:none}
+.notein:focus{border-color:var(--acc)}
+
+.lightchip{display:inline-block;background:var(--card2);border-radius:99px;padding:6px 13px;
+  font-size:12.5px;color:var(--dim);margin:0 6px 6px 0;font-variant-numeric:tabular-nums}
+.lightchip b{color:var(--acc);font-weight:700}
+
+svg.chart{width:100%;height:auto;display:block;margin:6px 0 2px}
+.chart-msg{color:var(--dim);font-size:13px;padding:18px 4px;text-align:center}
+
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:10;
+  background:rgba(10,10,12,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+.tabbar .in{max-width:480px;margin:0 auto;display:flex}
+.tab{flex:1;padding:15px 0 17px;text-align:center;font-size:11px;font-weight:700;
+  letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}
+.tab.on{color:var(--acc)}
+.tab .dot{display:block;width:4px;height:4px;border-radius:50%;background:var(--acc);margin:5px auto 0;opacity:0}
+.tab.on .dot{opacity:1}
+
+.progbar{height:3px;background:var(--line);border-radius:99px;overflow:hidden;margin:14px 0 18px}
+.progbar i{display:block;height:100%;background:var(--acc);border-radius:99px;transition:width .25s}
+.errbox{position:fixed;left:8px;right:8px;bottom:90px;background:#2a0d0d;color:#ff9d9d;
+  font:11px/1.4 monospace;padding:10px;border-radius:8px;z-index:99;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<nav class="tabbar"><div class="in" id="tabs"></div></nav>
+<script>
+'use strict';
+window.addEventListener('error',function(e){
+  var d=document.createElement('div');d.className='errbox';d.textContent=String(e.message||e.error);
+  document.body.appendChild(d);
+});
+
+/* ---------------- state ---------------- */
+var LS='forge.v1';
+var EX={
+  squat:   {name:'Squat',             kind:'bar', inc:2.5, seed:65, note:'RIR 1-2 per set'},
+  pullup:  {name:'Weighted Pull-Up',  kind:'bw',  inc:2.5, add:10,  note:'to failure is fine'},
+  deadlift:{name:'Deadlift',          kind:'bar', inc:2.5, seed:95, note:'RIR 1-2 per set'},
+  press:   {name:'Standing DB Press', kind:'db',  inc:2,   seed:20, note:'weight per dumbbell'},
+  dips:    {name:'Weighted Dips',     kind:'bw',  inc:2.5, add:10,   note:'to failure is fine'}
+};
+var ORDER=['squat','pullup','deadlift','press','dips'];
+
+function load(){ try{var s=JSON.parse(localStorage.getItem(LS)); if(s&&s.sessions)return s;}catch(e){} return null; }
+var S=load()||{settings:{bw:75},sessions:[],draft:null,view:'today'};
+function save(){ localStorage.setItem(LS,JSON.stringify(S)); }
+
+var editing=null;      /* {ex, idx} */
+var histEx='squat';
+var lightOpen=false, lightRounds=5, lightMins=3, lightNote='';
+
+/* ---------------- helpers ---------------- */
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function dayKey(ts){var d=new Date(ts);return d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate()}
+function fmtDate(ts){return new Date(ts).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}
+function fmtW(w){return (Math.round(w*10)/10).toString()}
+function num(n){return n.toLocaleString('en-GB')}
+
+function mainSessions(){return S.sessions.filter(function(s){return s.type==='main'})}
+function lastEntry(exId){
+  var ms=mainSessions();
+  for(var i=ms.length-1;i>=0;i--){
+    var en=ms[i].entries.find(function(e){return e.exId===exId});
+    if(en&&en.sets.length)return {sets:en.sets,ts:ms[i].ts};
+  }
+  return null;
+}
+function seedW(exId){var e=EX[exId];return e.kind==='bw'?S.settings.bw+e.add:e.seed}
+function target(exId){
+  var last=lastEntry(exId);
+  if(!last)return {w:seedW(exId),add:false,last:null};
+  var all8=last.sets.every(function(s){return s.r>=8});
+  return {w:all8?last.sets[0].w+EX[exId].inc:last.sets[0].w, add:all8, last:last};
+}
+function breakdown(exId,w){
+  var e=EX[exId];
+  if(e.kind!=='bw')return '';
+  var extra=Math.round((w-S.settings.bw)*10)/10;
+  return 'BW '+fmtW(S.settings.bw)+(extra>=0?' + ':' - ')+fmtW(Math.abs(extra));
+}
+function setsStr(sets){
+  return fmtW(sets[0].w)+' x '+sets.map(function(s){return s.r}).join(', ');
+}
+function e1rm(w,r){return w*(1+r/30)}
+function tonnage(entries){
+  var t=0;entries.forEach(function(e){e.sets.forEach(function(s){t+=s.w*s.r})});return Math.round(t);
+}
+function nextPair(afterN){
+  return [ORDER[(2*afterN)%ORDER.length],ORDER[(2*afterN+1)%ORDER.length]];
+}
+
+/* ---------------- today ---------------- */
+function startDraft(){
+  var n=mainSessions().length;
+  var ids=nextPair(n);
+  S.draft={ts:Date.now(),ids:ids,sets:{}};
+  ids.forEach(function(id){
+    var t=target(id);
+    var reps=t.last?Math.min(t.last.sets[0].r,8):6;
+    var nSets=t.last?t.last.sets.length:3;
+    S.draft.sets[id]=[];
+    for(var i=0;i<nSets;i++)S.draft.sets[id].push({w:t.w,r:reps,done:false});
+  });
+  save();
+}
+function draftProgress(){
+  var d=0,t=0;
+  S.draft.ids.forEach(function(id){S.draft.sets[id].forEach(function(s){t++;if(s.done)d++})});
+  return {d:d,t:t};
+}
+
+function rToday(){
+  var h='<header><div class="brand">F<i>O</i>RGE</div><div class="date">'+esc(new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}))+'</div></header>';
+
+  var todayMain=S.sessions.filter(function(s){return s.type==='main'&&dayKey(s.ts)===dayKey(Date.now())});
+
+  if(!S.draft){
+    if(todayMain.length){
+      /* summary of today's logged session(s) */
+      var last=todayMain[todayMain.length-1];
+      h+='<div class="card"><div class="eyebrow" style="margin:0 0 8px">Logged today</div>';
+      last.entries.forEach(function(e){
+        h+='<div class="lastline"><b>'+esc(EX[e.exId].name)+'</b> &nbsp;'+esc(setsStr(e.sets))+'</div>';
+      });
+      h+='<div class="statrow"><div class="stat"><div class="k">Moved</div><div class="v">'+num(tonnage(last.entries))+' kg</div></div>';
+      h+='<div class="stat"><div class="k">Sets</div><div class="v">'+last.entries.reduce(function(a,e){return a+e.sets.length},0)+'</div></div></div>';
+      h+='</div>';
+      var np=nextPair(mainSessions().length);
+      h+='<div class="eyebrow">Up next</div><div class="card"><div class="exname" style="font-size:17px">'+esc(EX[np[0]].name)+' &nbsp;&middot;&nbsp; '+esc(EX[np[1]].name)+'</div></div>';
+      h+='<button class="btn ghost" data-act="again">Train again today</button>';
+    } else {
+      var ids=nextPair(mainSessions().length);
+      var week=S.sessions.filter(function(s){return s.type==='main'&&Date.now()-s.ts<7*864e5}).length;
+      h+='<div class="eyebrow">Today</div>';
+      ids.forEach(function(id){
+        var t=target(id);
+        h+='<div class="card"><div class="exname">'+esc(EX[id].name)+(t.add?'<span class="badge">ADD WEIGHT</span>':'')+'</div>';
+        h+='<div class="exsub">'+esc(EX[id].note)+(EX[id].kind==='bw'?' &middot; '+esc(breakdown(id,t.w)):'')+'</div>';
+        h+='<div class="lastline">'+(t.last
+          ?'Last: <b>'+esc(setsStr(t.last.sets))+' kg</b> &middot; '+esc(fmtDate(t.last.ts))+'<br>Target: <b>'+fmtW(t.w)+' kg</b>'
+          :'First session &middot; start at <b>'+fmtW(t.w)+' kg</b>')+'</div></div>';
+      });
+      h+='<button class="btn acc" data-act="start">Start workout</button>';
+      h+='<div class="statrow" style="margin-top:14px"><div class="stat"><div class="k">This week</div><div class="v">'+week+'</div></div>';
+      h+='<div class="stat"><div class="k">Total sessions</div><div class="v">'+mainSessions().length+'</div></div></div>';
+    }
+  } else {
+    var p=draftProgress();
+    h+='<div class="progbar"><i style="width:'+(p.t?Math.round(p.d/p.t*100):0)+'%"></i></div>';
+    S.draft.ids.forEach(function(id){
+      var t=target(id);
+      var doneCount=S.draft.sets[id].filter(function(s){return s.done}).length;
+      h+='<div class="card"><div class="exname">'+esc(EX[id].name)+(t.add?'<span class="badge">ADD WEIGHT</span>':'')+'</div>';
+      h+='<div class="exsub">'+esc(EX[id].note)+(EX[id].kind==='bw'?' &middot; '+esc(breakdown(id,S.draft.sets[id][0].w)):'')+'</div>';
+      if(t.last)h+='<div class="lastline">Last: <b>'+esc(setsStr(t.last.sets))+' kg</b> &middot; '+esc(fmtDate(t.last.ts))+'</div>';
+      h+='<div style="height:10px"></div>';
+      S.draft.sets[id].forEach(function(s,idx){
+        var isEd=editing&&editing.ex===id&&editing.idx===idx;
+        h+='<div class="set'+(s.done?' done':'')+'">';
+        h+='<button class="setrow" data-act="set" data-ex="'+id+'" data-idx="'+idx+'">';
+        h+='<span class="setnum">'+(s.done?'&#10003;':idx+1)+'</span>';
+        h+='<span class="setval">'+fmtW(s.w)+'<span class="u">kg</span><span class="x">x</span>'+s.r+'</span>';
+        h+='<span class="chev">'+(isEd?'&#9662;':(s.done?'':'&#9656;'))+'</span></button>';
+        if(isEd){
+          h+='<div class="editor"><div class="steprow">';
+          h+='<div class="stepper"><span class="lab">Weight kg</span><button data-act="wm" data-ex="'+id+'" data-idx="'+idx+'">&#8722;</button><span class="stepv">'+fmtW(s.w)+'</span><button data-act="wp" data-ex="'+id+'" data-idx="'+idx+'">+</button></div>';
+          h+='<div class="stepper"><span class="lab">Reps</span><button data-act="rm" data-ex="'+id+'" data-idx="'+idx+'">&#8722;</button><span class="stepv">'+s.r+'</span><button data-act="rp" data-ex="'+id+'" data-idx="'+idx+'">+</button></div>';
+          h+='</div><button class="btn acc" data-act="done" data-ex="'+id+'" data-idx="'+idx+'">'+(s.done?'Update set':'Done')+'</button></div>';
+        }
+        h+='</div>';
+      });
+      if(S.draft.sets[id].length<5)
+        h+='<button class="addset" data-act="addset" data-ex="'+id+'">+ Add set</button>';
+      h+='</div>';
+    });
+    if(p.d>0)h+='<button class="btn acc" data-act="finish" style="margin-top:4px">Finish workout &middot; '+p.d+'/'+p.t+' sets</button>';
+    h+='<div style="height:14px"></div><button class="btn ghost" data-act="canceldraft">Discard workout</button>';
+  }
+
+  /* light day / heavy bag */
+  var todayLight=S.sessions.filter(function(s){return s.type==='light'&&dayKey(s.ts)===dayKey(Date.now())});
+  h+='<div style="height:22px"></div><div class="eyebrow">Light day &middot; heavy bag</div>';
+  todayLight.forEach(function(s){
+    h+='<span class="lightchip"><b>'+s.rounds+' rounds</b> x '+s.minutes+' min'+(s.note?' &middot; '+esc(s.note):'')+'</span>';
+  });
+  if(lightOpen){
+    h+='<div class="card"><div class="steprow">';
+    h+='<div class="stepper"><span class="lab">Rounds</span><button data-act="lrm">&#8722;</button><span class="stepv">'+lightRounds+'</span><button data-act="lrp">+</button></div>';
+    h+='<div class="stepper"><span class="lab">Min / round</span><button data-act="lmm">&#8722;</button><span class="stepv">'+lightMins+'</span><button data-act="lmp">+</button></div>';
+    h+='</div>';
+    h+='<input class="notein" id="lightnote" placeholder="Note (optional)" value="'+esc(lightNote)+'">';
+    h+='<button class="btn acc" data-act="loglight">Log bag work</button></div>';
+  } else {
+    h+='<button class="btn ghost" data-act="lightopen">Open bag-work log</button>';
+  }
+  return h;
+}
+
+/* ---------------- progress ---------------- */
+function rHistory(){
+  var h='<header><div class="brand">F<i>O</i>RGE</div><div class="date">Progress</div></header>';
+  h+='<div class="chips">';
+  ORDER.forEach(function(id){
+    h+='<button class="chip'+(histEx===id?' on':'')+'" data-act="chip" data-ex="'+id+'">'+esc(EX[id].name)+'</button>';
+  });
+  h+='</div>';
+
+  var rows=[];
+  mainSessions().forEach(function(s){
+    var en=s.entries.find(function(e){return e.exId===histEx});
+    if(en&&en.sets.length)rows.push({ts:s.ts,sets:en.sets});
+  });
+
+  if(!rows.length){
+    h+='<div class="card"><div class="chart-msg">No sessions logged for '+esc(EX[histEx].name)+' yet.</div></div>';
+  } else {
+    var top=rows.map(function(r){var m=r.sets[0];r.sets.forEach(function(s){if(e1rm(s.w,s.r)>e1rm(m.w,m.r))m=s});return m});
+    var pts=top.map(function(s){return e1rm(s.w,s.r)});
+    var best=Math.max.apply(null,pts);
+    var delta=pts.length>1?Math.round((pts[pts.length-1]-pts[0])*10)/10:0;
+
+    h+='<div class="card"><div class="exname" style="font-size:17px">'+esc(EX[histEx].name)+'</div>';
+    h+='<div class="statrow"><div class="stat"><div class="k">Top set</div><div class="v">'+fmtW(top[top.length-1].w)+' x '+top[top.length-1].r+'</div></div>';
+    h+='<div class="stat"><div class="k">Best e1RM</div><div class="v">'+Math.round(best)+' kg</div></div>';
+    h+='<div class="stat"><div class="k">Trend</div><div class="v">'+(delta>=0?'+':'')+delta+'</div></div></div>';
+
+    if(pts.length>1){
+      var W=340,H=90,P=8;
+      var mn=Math.min.apply(null,pts),mx=Math.max.apply(null,pts);
+      var rng=(mx-mn)||1;
+      var step=(W-2*P)/(pts.length-1);
+      var coords=pts.map(function(v,i){return [P+i*step, H-P-((v-mn)/rng)*(H-2*P)]});
+      var line=coords.map(function(c){return c[0].toFixed(1)+','+c[1].toFixed(1)}).join(' ');
+      h+='<svg class="chart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">';
+      h+='<polyline points="'+line+'" fill="none" stroke="#d8ff4a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+      coords.forEach(function(c){h+='<circle cx="'+c[0].toFixed(1)+'" cy="'+c[1].toFixed(1)+'" r="2.6" fill="#d8ff4a"/>'});
+      h+='</svg>';
+    } else {
+      h+='<div class="chart-msg">Log one more session to see the curve.</div>';
+    }
+    h+='</div>';
+
+    h+='<div class="eyebrow">History</div><div class="card" style="padding-top:6px;padding-bottom:6px">';
+    for(var i=rows.length-1;i>=0;i--){
+      var r=rows[i];
+      var si=-1;
+      for(var j=S.sessions.length-1;j>=0;j--){if(S.sessions[j].ts===r.ts&&S.sessions[j].type==='main'){si=j;break}}
+      h+='<div class="hrow"><span class="d">'+esc(fmtDate(r.ts))+'</span>';
+      h+='<span class="s">'+esc(setsStr(r.sets))+' <small>kg</small></span>';
+      h+='<button class="del" data-act="del" data-si="'+si+'">&#10005;</button></div>';
+    }
+    h+='</div>';
+  }
+  return h;
+}
+
+/* ---------------- settings ---------------- */
+function rSettings(){
+  var h='<header><div class="brand">F<i>O</i>RGE</div><div class="date">Settings</div></header>';
+  h+='<div class="eyebrow">Body</div><div class="card"><div class="field">';
+  h+='<div><div class="fk">Bodyweight</div><div class="fs">Pull-up and dip totals count this in</div></div>';
+  h+='<div class="ministep"><button data-act="bwm">&#8722;</button><span class="v">'+fmtW(S.settings.bw)+'</span><button data-act="bwp">+</button></div>';
+  h+='</div></div>';
+
+  h+='<div class="eyebrow">Program</div><div class="card">';
+  ORDER.forEach(function(id,i){
+    var t=target(id);
+    h+='<div class="field"><div><div class="fk">'+esc(EX[id].name)+'</div>';
+    h+='<div class="fs">'+esc(EX[id].note)+' &middot; now at '+(t.last?fmtW(t.last.sets[0].w):fmtW(t.w))+' kg</div></div></div>';
+  });
+  h+='</div>';
+
+  h+='<div class="eyebrow">Data</div><div class="card">';
+  h+='<div class="field"><div><div class="fk">Export</div><div class="fs">Download everything as JSON</div></div>';
+  h+='<button class="chip" data-act="export">Export</button></div>';
+  h+='<div class="field"><div><div class="fk">Reset</div><div class="fs">Wipe all data on this device</div></div>';
+  h+='<button class="chip" data-act="reset">Reset</button></div>';
+  h+='</div>';
+  h+='<div class="chart-msg" style="padding-top:26px">Data lives on this phone only, in the browser.<br>5 lifts, 2 per session, 4-8 reps. Hit 8 on every set and the weight goes up.</div>';
+  return h;
+}
+
+/* ---------------- render ---------------- */
+var app=document.getElementById('app'),tabs=document.getElementById('tabs');
+function render(){
+  app.innerHTML=(S.view==='today'?rToday():S.view==='history'?rHistory():rSettings());
+  var tabsDef=[['today','Today'],['history','Progress'],['settings','Settings']];
+  tabs.innerHTML=tabsDef.map(function(t){
+    return '<button class="tab'+(S.view===t[0]?' on':'')+'" data-act="tab" data-v="'+t[0]+'">'+t[1]+'<span class="dot"></span></button>';
+  }).join('');
+  var ln=document.getElementById('lightnote');
+  if(ln){ln.addEventListener('input',function(){lightNote=ln.value})}
+}
+
+/* ---------------- actions ---------------- */
+document.addEventListener('click',function(e){
+  var b=e.target.closest('[data-act]');if(!b)return;
+  var a=b.dataset.act, ex=b.dataset.ex, idx=+b.dataset.idx;
+
+  if(a==='tab'){S.view=b.dataset.v;editing=null;save();render();return}
+  if(a==='start'||a==='again'){startDraft();save();render();return}
+  if(a==='canceldraft'){if(confirm('Discard this workout? Sets already marked done will be lost.')){S.draft=null;editing=null;save();render()}return}
+  if(a==='set'){
+    if(editing&&editing.ex===ex&&editing.idx===idx)editing=null;
+    else editing={ex:ex,idx:idx};
+    render();return;
+  }
+  if(a==='wp'||a==='wm'||a==='rp'||a==='rm'){
+    var s=S.draft.sets[ex][idx];
+    var step=EX[ex].inc;
+    if(a==='wp')s.w=Math.round((s.w+step)*10)/10;
+    if(a==='wm')s.w=Math.max(0,Math.round((s.w-step)*10)/10);
+    if(a==='rp')s.r=Math.min(30,s.r+1);
+    if(a==='rm')s.r=Math.max(1,s.r-1);
+    save();render();return;
+  }
+  if(a==='done'){
+    var s2=S.draft.sets[ex][idx];
+    s2.done=true;editing=null;save();render();return;
+  }
+  if(a==='addset'){
+    var arr=S.draft.sets[ex];
+    var lastS=arr[arr.length-1];
+    arr.push({w:lastS.w,r:lastS.r,done:false});
+    editing={ex:ex,idx:arr.length-1};
+    save();render();return;
+  }
+  if(a==='finish'){
+    var entries=S.draft.ids.map(function(id){
+      return {exId:id,sets:S.draft.sets[id].filter(function(s){return s.done}).map(function(s){return{w:s.w,r:s.r}})};
+    }).filter(function(e){return e.sets.length});
+    if(!entries.length)return;
+    S.sessions.push({ts:Date.now(),type:'main',entries:entries});
+    S.draft=null;editing=null;save();S.view='today';render();return;
+  }
+  if(a==='chip'){histEx=ex;render();return}
+  if(a==='del'){
+    var si=+b.dataset.si;
+    if(si>=0&&confirm('Delete this session?')){S.sessions.splice(si,1);save();render()}
+    return;
+  }
+  if(a==='lightopen'){lightOpen=true;render();return}
+  if(a==='lrp'){lightRounds=Math.min(20,lightRounds+1);render();return}
+  if(a==='lrm'){lightRounds=Math.max(1,lightRounds-1);render();return}
+  if(a==='lmp'){lightMins=Math.min(10,lightMins+1);render();return}
+  if(a==='lmm'){lightMins=Math.max(1,lightMins-1);render();return}
+  if(a==='loglight'){
+    S.sessions.push({ts:Date.now(),type:'light',rounds:lightRounds,minutes:lightMins,note:lightNote.trim()});
+    lightOpen=false;lightNote='';save();render();return;
+  }
+  if(a==='bwp'){S.settings.bw=Math.round((S.settings.bw+0.5)*10)/10;save();render();return}
+  if(a==='bwm'){S.settings.bw=Math.max(30,Math.round((S.settings.bw-0.5)*10)/10);save();render();return}
+  if(a==='export'){
+    var blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
+    var u=URL.createObjectURL(blob);
+    var l=document.createElement('a');l.href=u;l.download='forge-export.json';l.click();
+    setTimeout(function(){URL.revokeObjectURL(u)},4000);return;
+  }
+  if(a==='reset'){
+    if(confirm('Wipe ALL training data on this device?')){localStorage.removeItem(LS);S={settings:{bw:75},sessions:[],draft:null,view:'today'};editing=null;render()}
+    return;
+  }
+});
+
+/* pwa niceties */
+try{
+  var icon='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512"><rect width="512" height="512" rx="110" fill="#0a0a0c"/><circle cx="256" cy="256" r="118" fill="none" stroke="#d8ff4a" stroke-width="30"/><circle cx="256" cy="256" r="34" fill="#d8ff4a"/></svg>');
+  var fav=document.createElement('link');fav.rel='icon';fav.href=icon;document.head.appendChild(fav);
+  var man=document.createElement('link');man.rel='manifest';
+  man.href=URL.createObjectURL(new Blob([JSON.stringify({name:'FORGE',short_name:'FORGE',display:'standalone',background_color:'#0a0a0c',theme_color:'#0a0a0c',start_url:'.',icons:[{src:icon,sizes:'512x512',type:'image/svg+xml'}]})],{type:'application/json'}));
+  document.head.appendChild(man);
+}catch(e){}
+
+render();
+</script>
+</body>
+</html>
