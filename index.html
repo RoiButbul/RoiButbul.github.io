@@ -244,7 +244,23 @@ header{padding:calc(25px + env(safe-area-inset-top)) 1px 25px;align-items:center
 .heatgrid .c.today{outline:1.5px solid rgba(216,255,74,.85);outline-offset:1.5px}
 .heatleg{display:flex;align-items:center;gap:5px;justify-content:flex-end;margin-top:10px;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#6f736c}
 .heatleg .c{width:9px;height:9px;border-radius:3px}
-.awaycard{border-color:rgba(105,195,255,.28);background:linear-gradient(145deg,rgba(21,34,42,.96),rgba(18,20,18,.97))}.awaymark{display:inline-flex;align-items:center;gap:7px;color:#8dd5ff;font-size:10px;font-weight:800;letter-spacing:.15em;text-transform:uppercase}.awaymark:before{content:"";width:7px;height:7px;border-radius:50%;background:#6fcaff;box-shadow:0 0 13px rgba(111,202,255,.55)}.hrow .awaymark{display:flex;margin-bottom:7px}.pickchips{flex-wrap:wrap;overflow:visible;padding-bottom:2px}.daybtn{min-height:34px;padding:0 11px;border-radius:10px;background:rgba(255,255,255,.055);color:#a9ada6;font-size:10px;font-weight:750}.modnote{color:#d6ffad;font-size:10px;font-weight:650}.wrow.awaydone .wc:after{content:"AWAY";display:inline-block;margin-left:8px;color:#8dd5ff;font-size:8px;letter-spacing:.12em}</style>
+.awaycard{border-color:rgba(105,195,255,.28);background:linear-gradient(145deg,rgba(21,34,42,.96),rgba(18,20,18,.97))}.awaymark{display:inline-flex;align-items:center;gap:7px;color:#8dd5ff;font-size:10px;font-weight:800;letter-spacing:.15em;text-transform:uppercase}.awaymark:before{content:"";width:7px;height:7px;border-radius:50%;background:#6fcaff;box-shadow:0 0 13px rgba(111,202,255,.55)}.hrow .awaymark{display:flex;margin-bottom:7px}.pickchips{flex-wrap:wrap;overflow:visible;padding-bottom:2px}.daybtn{min-height:34px;padding:0 11px;border-radius:10px;background:rgba(255,255,255,.055);color:#a9ada6;font-size:10px;font-weight:750}.modnote{color:#d6ffad;font-size:10px;font-weight:650}.wrow.awaydone .wc:after{content:"AWAY";display:inline-block;margin-left:8px;color:#8dd5ff;font-size:8px;letter-spacing:.12em}.bfscrim{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.58);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);animation:bffade .2s ease-out}
+.bfsheet{position:fixed;left:0;right:0;bottom:0;z-index:61;max-width:520px;margin:0 auto;background:linear-gradient(180deg,#171a17,#101210);border:1px solid rgba(255,255,255,.08);border-bottom:0;border-radius:28px 28px 0 0;padding:10px 22px calc(22px + env(safe-area-inset-bottom));text-align:center;box-shadow:0 -30px 80px rgba(0,0,0,.45);animation:bfup .28s cubic-bezier(.2,.9,.25,1)}
+.bfsheet .grab{width:38px;height:5px;border-radius:3px;background:rgba(255,255,255,.16);margin:0 auto 18px}
+.bfsheet .awaymark{justify-content:center}
+.bfday{font-size:22px;font-weight:760;letter-spacing:-.02em;margin:10px 0 2px}
+.bfnum{display:flex;align-items:center;justify-content:center;gap:14px;margin:14px 0 0}
+.bfnum button{flex:none;width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);font-size:26px;color:var(--tx)}
+.bfnum button:active{transform:scale(.94)}
+.bfbig{font-size:clamp(92px,28vw,124px);font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.05em;line-height:1;min-width:2.1ch}
+.bfunit{font-size:11px;font-weight:800;letter-spacing:.24em;color:#8e928b;margin:6px 0 16px}
+.bfchips{display:flex;justify-content:center;gap:8px;margin-bottom:18px}
+.bfchips button{min-width:54px;height:36px;border-radius:12px;background:rgba(255,255,255,.05);color:#a9ada6;font-size:12px;font-weight:750}
+.bfchips button.on{background:rgba(141,213,255,.16);color:#8dd5ff}
+.bfnote{font-size:12px;color:#8e928b;margin:0 0 16px}
+@keyframes bfup{from{transform:translateY(100%)}to{transform:none}}
+@keyframes bffade{from{opacity:0}to{opacity:1}}
+</style>
 </head>
 <body class="">
 <div id="app"></div>
@@ -511,10 +527,10 @@ function evalStreak(){
     if(!st.settled[k]){
       var sched=schedFor(cursor);
       var ok=(sched.type==='rest')||!!S.fulfilledDays[k];
-      if(ok){bumpStreak(st)}
-      else if(st.freezes>0){st.freezes--;bumpStreak(st);queueCeleb({type:'freeze',cur:st.cur})}
-      else{st.cur=0;st.lastEarned=0}
-      st.settled[k]=true;
+      /* v9: remember how each day was settled, so a later general-workout backfill can repair it */
+      if(ok){bumpStreak(st);st.settled[k]='ok'}
+      else if(st.freezes>0){st.freezes--;bumpStreak(st);queueCeleb({type:'freeze',cur:st.cur});st.settled[k]='freeze'}
+      else{if(!st.missPrev)st.missPrev={};st.missPrev[k]={cur:st.cur,lastEarned:st.lastEarned};st.cur=0;st.lastEarned=0;st.settled[k]='miss'}
     }
     cursor.setDate(cursor.getDate()+1);
   }
@@ -537,7 +553,7 @@ function fulfillToday(){
   S.fulfilledDays[k]=true;
   var st=S.streak;
   if(!st.settled)st.settled={};
-  if(!st.settled[k]){bumpStreak(st);st.settled[k]=true}
+  if(!st.settled[k]){bumpStreak(st);st.settled[k]='ok'}
   checkPerfectWeek();
   save();
   return true;
@@ -670,6 +686,82 @@ function startMakeup(){
 }
 function startAwayBuilder(){S.view='away';save();render()}
 function startAway(){S.draft={ts:Date.now(),day:new Date().getDay(),away:true,queue:[],phase:'awaylive'};save();render()}
+/* v9: backfill a missed past day with a general workout - duration typed in, logged on THAT date, counts like Train anywhere */
+var bfPick=null;
+function backfillable(k){
+  var d=parseDayKey(k),todayK=dayKey(Date.now());
+  if(k===todayK||d.getTime()>Date.now())return false;
+  var lim=new Date();lim.setHours(0,0,0,0);lim.setDate(lim.getDate()-7);
+  if(d.getTime()<lim.getTime())return false;
+  if(S.fulfilledDays[k])return false;
+  if(schedFor(d).type==='rest')return false;
+  if(S.sessions.some(function(x){return dayKey(x.ts)===k}))return false;
+  return true;
+}
+function replayStreak(){
+  /* fallback for days settled before v9 (outcome not recorded): replay the streak rules over history */
+  var st=S.streak,keys=Object.keys(S.fulfilledDays);if(!keys.length)return;
+  var start=keys.map(parseDayKey).sort(function(a,b){return a-b})[0];
+  var r={cur:0,best:0,freezes:0,lastEarned:0},outc={},prev={},todayK=dayKey(Date.now());
+  var d=new Date(start),g=0;
+  while(g++<800){
+    var k=dayKey(d.getTime());
+    if(k===todayK)break;
+    if(st.settled[k]){
+      var ok=(schedFor(d).type==='rest')||!!S.fulfilledDays[k];
+      if(ok){r.cur++;outc[k]='ok'}
+      else if(r.freezes>0){r.freezes--;r.cur++;outc[k]='freeze'}
+      else{prev[k]={cur:r.cur,lastEarned:r.lastEarned};r.cur=0;r.lastEarned=0;outc[k]='miss'}
+      if(r.cur>r.best)r.best=r.cur;
+      while(r.cur>=r.lastEarned+14){if(r.freezes<2)r.freezes++;r.lastEarned+=14}
+    }
+    d.setDate(d.getDate()+1);
+  }
+  if(st.settled[todayK]){r.cur++;if(r.cur>r.best)r.best=r.cur}
+  if(r.cur>=st.cur){
+    st.cur=r.cur;st.freezes=r.freezes;st.lastEarned=r.lastEarned;
+    Object.keys(outc).forEach(function(k){st.settled[k]=outc[k]});
+    st.missPrev=prev;
+  }
+  if(st.cur>st.best)st.best=st.cur;
+}
+function backfillAway(k,mins){
+  if(!backfillable(k))return null;
+  var d=parseDayKey(k),dur=Math.max(1,Math.round(mins))*60000;
+  var sess={ts:d.getTime(),type:'away',entries:[],durationMs:dur,backfilled:true,loggedAt:Date.now()};
+  var i=S.sessions.length;while(i>0&&S.sessions[i-1].ts>sess.ts)i--;
+  S.sessions.splice(i,0,sess);
+  S.fulfilledDays[k]=true;
+  if(S.releasedDays)delete S.releasedDays[k];
+  var st=S.streak;if(!st.settled)st.settled={};
+  var o=st.settled[k];
+  if(!o){evalStreak()} /* still open (pending makeup day): the normal settle counts it now */
+  else if(o==='freeze'){st.freezes=Math.min(2,st.freezes+1);st.settled[k]='ok'} /* the freeze comes back */
+  else if(o==='miss'&&!Object.keys(st.settled).some(function(x){return st.settled[x]==='miss'&&parseDayKey(x)>d})){
+    var pv=(st.missPrev&&st.missPrev[k])||{cur:0,lastEarned:0};
+    st.cur=pv.cur+1+st.cur;st.lastEarned=pv.lastEarned;earnFreezes(st);
+    if(st.cur>st.best)st.best=st.cur;st.settled[k]='ok';delete st.missPrev[k];
+  }
+  else if(o!=='ok'){replayStreak()}
+  checkPerfectWeek();
+  save();
+  return sess;
+}
+function bfSheet(){
+  if(!bfPick)return '';
+  var d=parseDayKey(bfPick.k),y=new Date();y.setDate(y.getDate()-1);
+  var when=dayKey(y.getTime())===bfPick.k?'Yesterday':DAYN[d.getDay()];
+  var h='<div class="bfscrim" data-act="bfcancel"></div><div class="bfsheet"><div class="grab"></div>';
+  h+='<div class="awaymark">Add general workout</div>';
+  h+='<div class="bfday">'+esc(when)+' &middot; '+esc(d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}))+'</div>';
+  h+='<div class="bfnum"><button data-act="bfm">&#8722;</button><div class="bfbig">'+bfPick.m+'</div><button data-act="bfp">+</button></div>';
+  h+='<div class="bfunit">MINUTES</div><div class="bfchips">';
+  [20,30,45,60,90].forEach(function(v){h+='<button class="'+(bfPick.m===v?'on':'')+'" data-act="bfq" data-v="'+v+'">'+v+'</button>'});
+  h+='</div><div class="bfnote">Counts as a full streak day &middot; no strength PRs</div>';
+  h+='<button class="btn acc" data-act="bfsave">Add to '+esc(when==='Yesterday'?'yesterday':when)+'</button>';
+  h+='<div class="linkrow"><button data-act="bfcancel">Cancel</button></div></div>';
+  return h;
+}
 function finishAway(){if(!S.draft||!S.draft.away)return;var endAt=Date.now(),startAt=S.draft.ts||endAt;var sess={ts:endAt,type:'away',entries:[],startAt:startAt,endAt:endAt,durationMs:Math.max(0,endAt-startAt)};S.sessions.push(sess);S.summary=sess;S.draft=null;clearTimer();fulfillToday();S.view='today';save();render()}
 function rAwaySetup(){var h='<header><div class="brand">F<i>O</i>RGE</div><div class="date">Train anywhere</div></header>';h+='<div class="card awaycard" style="padding:34px 28px"><div class="awaymark">Streak workout</div><div class="exname" style="font-size:34px;margin-top:18px">Just train.</div><div class="exsub" style="font-size:15px;margin-top:12px">Whatever is available. No exercise setup, no weights to enter, no PR comparison. Start, train, finish - the day counts in full.</div><div style="height:34px"></div><button class="btn acc" data-act="awaystart">Start general workout</button><div class="linkrow"><button data-act="awaycancel">Cancel</button></div></div>';return h}
 function rAwayLive(){var h='<div class="hero" style="text-align:center"><div class="awaymark" style="justify-content:center">Streak workout &middot; live</div><div class="clock" id="awayelapsed" style="font-size:clamp(88px,27vw,116px);margin-bottom:8px">'+fmtT(Math.floor((Date.now()-S.draft.ts)/1000))+'</div><div class="herolast">Train with whatever is available.<br>No exercise details needed.</div><button class="btn acc" data-act="awayfinish" style="height:68px;font-size:18px">Finish workout</button><div class="linkrow" style="margin-top:12px"><button data-act="canceldraft">Discard</button></div></div>';return h}
@@ -798,12 +890,13 @@ function rRestoverScreen(){
 function rWorkoutSummary(){
   var s=S.summary;
   var h='<div class="finish">';
-  h+='<div class="herolab">'+(s.type==='away'?'STREAK WORKOUT COMPLETE':'WORKOUT COMPLETE')+'</div>';
-  h+='<div class="finishdur">'+esc(fmtDuration(s.durationMs))+'</div>';if(s.type==='away')h+='<div class="finishlabel" style="color:#8dd5ff;margin-bottom:8px">GENERAL WORKOUT Â· FULL STREAK DAY</div>';
+  h+='<div class="herolab">'+(s.backfilled?'ADDED TO '+esc(fmtDate(s.ts).toUpperCase()):s.type==='away'?'STREAK WORKOUT COMPLETE':'WORKOUT COMPLETE')+'</div>';
+  h+='<div class="finishdur">'+esc(fmtDuration(s.durationMs))+'</div>';if(s.type==='away')h+='<div class="finishlabel" style="color:#8dd5ff;margin-bottom:8px">GENERAL WORKOUT &middot; FULL STREAK DAY</div>';
   h+='<div class="finishlabel">TOTAL TIME</div>';
-  h+='<div class="finishtimes"><div><span>STARTED</span><b>'+esc(fmtClock(s.startAt))+'</b></div><i></i><div><span>ENDED</span><b>'+esc(fmtClock(s.endAt))+'</b></div></div>';
-  h+='<div class="statrow"><div class="stat"><div class="k">'+(s.type==='away'?'Counts':'Moved')+'</div><div class="v">'+(s.type==='away'?'Full day':num(tonnage(s.entries))+' kg')+'</div></div>';
-  h+='<div class="stat"><div class="k">'+(s.type==='away'?'Mode':'Sets')+'</div><div class="v">'+(s.type==='away'?'Open':s.entries.reduce(function(a,e){return a+e.sets.length},0))+'</div></div></div>';
+  if(s.backfilled)h+='<div class="statrow"><div class="stat"><div class="k">Streak</div><div class="v">'+S.streak.cur+' days</div></div><div class="stat"><div class="k">Counts</div><div class="v">Full day</div></div></div>';
+  else h+='<div class="finishtimes"><div><span>STARTED</span><b>'+esc(fmtClock(s.startAt))+'</b></div><i></i><div><span>ENDED</span><b>'+esc(fmtClock(s.endAt))+'</b></div></div>';
+  if(!s.backfilled)h+='<div class="statrow"><div class="stat"><div class="k">'+(s.type==='away'?'Counts':'Moved')+'</div><div class="v">'+(s.type==='away'?'Full day':num(tonnage(s.entries))+' kg')+'</div></div>';
+  if(!s.backfilled)h+='<div class="stat"><div class="k">'+(s.type==='away'?'Mode':'Sets')+'</div><div class="v">'+(s.type==='away'?'Open':s.entries.reduce(function(a,e){return a+e.sets.length},0))+'</div></div></div>';
   var ups=s.type==='away'?[]:s.entries.filter(function(e){return e.sets.length&&e.sets.every(function(x){return x.r>=8})});
   if(ups.length)h+='<div class="finishach">Weight up earned &middot; '+ups.map(function(e){return esc(EX[e.exId].name)+' '+dispW(e.exId,e.sets[0].w)+' \u2192 '+dispW(e.exId,Math.round((e.sets[0].w+incOf(e.exId))*10)/10)+' kg'}).join(' &middot; ')+'</div>';
   h+='<button class="btn acc" data-act="summarydone">Done</button></div>';
@@ -831,7 +924,15 @@ function rToday(){
     h+='<div style="height:12px"></div>';
     h+='<button class="btn acc" data-act="makeup">Do yesterday&#8217;s workout</button>';
     h+='<div style="height:8px"></div>';
-    h+='<button class="btn ghost" data-act="release">Let it go</button></div>';
+    h+='<button class="btn ghost" data-act="release">Let it go</button>';
+    h+='<div class="linkrow" style="margin-top:4px"><button data-act="bfopen" data-day="'+pendK+'">Log a general workout for yesterday</button></div></div>';
+  } else {
+    var yb=new Date();yb.setDate(yb.getDate()-1);var ybK=dayKey(yb.getTime());
+    if(backfillable(ybK)){
+      h+='<div class="card awaycard"><div class="awaymark">Missed yesterday &middot; '+esc(DAYN[yb.getDay()])+'</div>';
+      h+='<div class="exsub" style="margin-top:10px">Trained without logging? Add a general workout to yesterday and the day counts in full.</div><div style="height:12px"></div>';
+      h+='<button class="btn ghost" data-act="bfopen" data-day="'+ybK+'">Add general workout</button></div>';
+    }
   }
 
   if(todayMain.length){
@@ -926,13 +1027,15 @@ function rWeek(){
     h+='<div class="wrow'+(future?' future':'')+(awayDone?' awaydone':'')+'"><span class="wd">'+DAYS[i]+'</span><span class="wc">'+esc(schedObjText(sc))+(sc.type==='lifts'?'<br><small>'+sc.ex.map(function(id){return fmtT(S.settings.rest[id])}).join(' / ')+' rests</small>':'')+(mod?'<br><span class="modnote">Modified this week</span>':'')+'</span>';
     if(isToday)h+='<span class="tag">TODAY</span>';
     if(done)h+='<span class="tick">&#10003;</span>';
-    if(base.type==='lifts'){
+    var past=!isToday&&!future;
+    if(past&&backfillable(k))h+='<button class="daybtn" data-act="bfopen" data-day="'+k+'">Add workout</button>';
+    else if(base.type==='lifts'&&!past){
       if(mod)h+='<button class="daybtn" data-act="replundo" data-day="'+k+'">Undo</button>';
       else if(!done)h+='<button class="daybtn" data-act="replopen" data-day="'+k+'">Replace</button>';
     }
     h+='</div>';
   }
-  h+='</div><div class="chart-msg">Replacements only affect this week. Edit the permanent program in Settings.</div>';
+  h+='</div><div class="chart-msg">Replacements only affect this week. Edit the permanent program in Settings.<br>Missed a day this week? Add workout logs a general workout on that date.</div>';
   return h}
 /* ---------------- progress ---------------- */
 function sparkline(pts,w,h){
@@ -1054,7 +1157,7 @@ function rHistory(){
   /* v6: story first - one stat to smile at, every lift's trend, consistency */
   h+=progressStory();
   h+=liftsTrends();
-  h+=consistencyHeat();var aw=S.sessions.filter(function(s){return s.type==='away'});if(aw.length){h+='<div class="eyebrow">Streak workouts</div><div class="card awaycard">';for(var ai=aw.length-1;ai>=Math.max(0,aw.length-4);ai--){var as=aw[ai];h+='<div class="hrow"><span class="d">'+esc(fmtDate(as.ts))+'</span><span class="s"><span class="awaymark">AWAY</span><small>General workout Â· '+esc(fmtDuration(as.durationMs))+'</small></span></div>'}h+='</div>'}
+  h+=consistencyHeat();var aw=S.sessions.filter(function(s){return s.type==='away'});if(aw.length){h+='<div class="eyebrow">Streak workouts</div><div class="card awaycard">';for(var ai=aw.length-1;ai>=Math.max(0,aw.length-4);ai--){var as=aw[ai];h+='<div class="hrow"><span class="d">'+esc(fmtDate(as.ts))+'</span><span class="s"><span class="awaymark">AWAY</span><small>General workout &middot; '+esc(fmtDuration(as.durationMs))+(as.backfilled?' &middot; added later':'')+'</small></span></div>'}h+='</div>'}
   h+='<div class="chips">';
   ORDER.forEach(function(id){
     h+='<button class="chip'+(histEx===id?' on':'')+'" data-act="chip" data-ex="'+id+'">'+esc(EX[id].name)+'</button>';
@@ -1183,7 +1286,7 @@ function rSettings(){
   h+='<div class="field"><div><div class="fk">Reset</div><div class="fs">Wipe all data on this device</div></div>';
   h+='<button class="chip" data-act="reset">Reset</button></div>';
   h+='</div>';
-  h+='<div class="chart-msg" style="padding-top:26px">Data lives on this phone only, in the browser.<br>Hit 8 on every set and the weight goes up.</div>';
+  h+='<div class="chart-msg" style="padding-top:26px">Data lives on this phone only, in the browser.<br>Hit 8 on every set and the weight goes up.<br><span style="opacity:.5">FORGE v9</span></div>';
   return h;
 }
 
@@ -1228,7 +1331,7 @@ function render(){
   } else {
     html=(S.view==='mig52'?rMig52():S.view==='away'?rAwaySetup():S.view==='today'?rToday():S.view==='week'?rWeek():S.view==='history'?rHistory():rSettings());
   }
-  app.innerHTML=html+celebHtml();
+  app.innerHTML=html+(S.draft||S.summary?'':bfSheet())+celebHtml();
   document.body.classList.toggle('workout',!!S.draft||!!S.summary);
   app.classList.toggle('appcol',!S.draft&&!S.summary&&S.view==='today');
   var tabsDef=[['today','Today'],['week','Week'],['history','Progress'],['settings','Settings']];
@@ -1254,6 +1357,12 @@ document.addEventListener('click',function(e){
   if(a==='replcancel'){replPick=null;render();return}
   if(a==='replundo'){undoWeekDay(b.dataset.day);render();return}
   if(a==='makeup'){startMakeup();render();return}
+  if(a==='bfopen'){if(backfillable(b.dataset.day)){bfPick={k:b.dataset.day,m:30};render()}return}
+  if(a==='bfcancel'){bfPick=null;render();return}
+  if(a==='bfm'){if(bfPick){bfPick.m=Math.max(5,bfPick.m-5);render()}return}
+  if(a==='bfp'){if(bfPick){bfPick.m=Math.min(300,bfPick.m+5);render()}return}
+  if(a==='bfq'){if(bfPick){bfPick.m=+b.dataset.v;render()}return}
+  if(a==='bfsave'){if(bfPick){var bs=backfillAway(bfPick.k,bfPick.m);bfPick=null;if(bs)S.summary=bs;save();render()}return}
   if(a==='release'){
     var yd2=new Date();yd2.setDate(yd2.getDate()-1);
     if(confirm('Let yesterday go? The missed day will count against the streak (a freeze covers it if you have one).')){
