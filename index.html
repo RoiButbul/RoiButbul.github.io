@@ -57,6 +57,14 @@ header{padding:30px 6px 20px;display:flex;justify-content:space-between;align-it
 .chip{flex:none;padding:9px 16px;border-radius:99px;border:1.5px solid var(--line);
   font-size:13.5px;font-weight:600;color:var(--dim);white-space:nowrap}
 .chip.on{border-color:var(--acc);color:var(--acc);background:var(--acc-soft)}
+.planhero{font-size:clamp(34px,10vw,52px);font-weight:800;line-height:1.05;letter-spacing:-.045em;margin:20px 0 16px}
+.planlist{display:flex;flex-direction:column;gap:8px;margin:18px 0}
+.planitem{display:flex;align-items:center;gap:12px;background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.planitem span{flex:1;font-size:15px;font-weight:700}
+.planitem button{color:var(--dim);font-size:13px;padding:8px;min-width:44px;min-height:44px}
+.planchoices{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.planchoices .chip{white-space:normal;text-align:left;min-height:44px}
+.planfooter{color:var(--dim);font-size:12px;margin:12px 2px 22px;line-height:1.5}
 .mini{padding:7px 13px;border-radius:99px;border:1.5px solid var(--line);
   font-size:12px;font-weight:700;color:var(--tx);white-space:nowrap}
 .mini:active{border-color:var(--acc)}
@@ -314,9 +322,14 @@ if(!S.overrides)S.overrides={};
 if(!S.streak)S.streak={cur:0,best:0,freezes:0,lastEarned:0,lastCountedK:null,lastCountedTs:0,pwK:null};
 if(!S.fulfilledDays)S.fulfilledDays={};
 if(!S.celebQueue)S.celebQueue=[];
+if(!S.customEx||typeof S.customEx!=='object')S.customEx={};
+Object.keys(S.customEx).forEach(function(id){var x=S.customEx[id];if(x&&typeof x.name==='string')EX[id]={name:x.name,kind:'other',inc:2.5,seed:0,note:'Your exercise'}});
+if(!S.dayPlans)S.dayPlans={};
 if(!S.weekRepl)S.weekRepl={}; /* v8: per-day exercise replace, this week only - replaces the day-swap Move */
 if(typeof S.weekSwaps!=='undefined')delete S.weekSwaps; /* v8: day-swap Move removed; any in-flight swap reverts to the permanent program */
 var replPick=null;
+var dayPick=null;
+if(S.view==='daybuild')S.view='today'; /* an unfinished one-day edit is not persisted */
 if(typeof S.shift!=='undefined')delete S.shift; /* v5.5: shift model removed - makeup is same-day, the program never moves */
 if(!S.releasedDays)S.releasedDays={}; /* v5.4: missed days the user chose to drop */
 if(S.draft&&!S.draft.queue){S.draft=null;S.timer=null} /* v2 draft shape: discard */
@@ -350,7 +363,7 @@ function target(exId){
   var last=lastEntry(exId);
   if(S.overrides&&typeof S.overrides[exId]==='number')return {w:S.overrides[exId],add:false,last:last};
   if(!last)return {w:seedW(exId),add:false,last:null};
-  var all8=last.sets.every(function(s){return s.r>=8});
+  var all8=EX[exId].kind!=='other'&&last.sets.every(function(s){return s.r>=8});
   return {w:all8?Math.round((last.sets[0].w+incOf(exId))*10)/10:last.sets[0].w, add:all8, last:last};
 }
 function breakdown(exId,w){
@@ -361,13 +374,15 @@ function breakdown(exId,w){
 function dispW(exId,w){return (EX[exId]&&EX[exId].kind==='bw'?'+':'')+fmtW(w)}
 function setsStr(exId,sets){return dispW(exId,sets[0].w)+' x '+sets.map(function(s){return s.r}).join(', ')}
 function e1rm(w,r){return w*(1+r/30)}
-function tonnage(entries){var t=0;var bw=(S.settings&&S.settings.bw)?S.settings.bw:0;entries.forEach(function(e){e.sets.forEach(function(s){t+=(s.w+bw)*s.r})});return Math.round(t)}
+function tonnage(entries){var t=0;var bw=(S.settings&&S.settings.bw)?S.settings.bw:0;entries.forEach(function(e){e.sets.forEach(function(s){t+=(s.w+((EX[e.exId]&&EX[e.exId].kind==='bw')?bw:0))*s.r})});return Math.round(t)}
 function schedText(d){
   var s=S.schedule[d];
   if(s.type==='bag')return 'Heavy bag';
   if(s.type==='rest')return 'Rest';
   return s.ex.map(function(id){return EX[id].name}).join(' + ');
 }
+function validDayExercises(ex){return Array.isArray(ex)&&ex.length>0&&ex.length<=6&&ex.every(function(id){return !!EX[id]})}
+function dayPlanFor(dt){var p=S.dayPlans[dayKey(dt.getTime())];return p&&p.type==='lifts'&&validDayExercises(p.ex)?p:null}
 function schedObjText(s){
   if(s.type==='bag')return 'Heavy bag';
   if(s.type==='rest')return 'Rest';
@@ -375,7 +390,7 @@ function schedObjText(s){
 }
 /* v5.5: schedule is always the original weekday layout - no shift */
 function weekKey(dt){var d=new Date(dt);d.setHours(12,0,0,0);d.setDate(d.getDate()-d.getDay());return dayKey(d.getTime())}
-function scheduleForKey(dt){var wk=weekKey(dt),plan=S.weekRepl&&S.weekRepl[wk],k=dayKey(dt.getTime());if(plan&&plan[k]&&S.schedule[dt.getDay()].type==='lifts')return{type:'lifts',ex:plan[k].ex.slice()};return S.schedule[dt.getDay()]}
+function scheduleForKey(dt){var one=dayPlanFor(dt);if(one)return {type:'lifts',ex:one.ex.slice()};var wk=weekKey(dt),plan=S.weekRepl&&S.weekRepl[wk],k=dayKey(dt.getTime());if(plan&&plan[k]&&S.schedule[dt.getDay()].type==='lifts')return{type:'lifts',ex:plan[k].ex.slice()};return S.schedule[dt.getDay()]}
 function replForDay(dt){var wk=weekKey(dt),plan=S.weekRepl&&S.weekRepl[wk],k=dayKey(dt.getTime());return plan&&plan[k]?plan[k]:null}
 function schedFor(dt){return scheduleForKey(dt)}
 function cloneSched(x){return JSON.parse(JSON.stringify(x))}
@@ -793,7 +808,7 @@ function finishWorkout(){
     /* celebrations computed against pre-session history */
     var wuLifts=[],wuPrs=[];
     entries.forEach(function(e){
-      var all8=e.sets.length>0&&e.sets.every(function(s){return s.r>=8});
+      var all8=EX[e.exId].kind!=='other'&&e.sets.length>0&&e.sets.every(function(s){return s.r>=8});
       if(all8)wuLifts.push({ex:e.exId,from:e.sets[0].w,to:Math.round((e.sets[0].w+incOf(e.exId))*10)/10});
       e.sets.forEach(function(s){
         var best=0;
@@ -897,12 +912,30 @@ function rWorkoutSummary(){
   else h+='<div class="finishtimes"><div><span>STARTED</span><b>'+esc(fmtClock(s.startAt))+'</b></div><i></i><div><span>ENDED</span><b>'+esc(fmtClock(s.endAt))+'</b></div></div>';
   if(!s.backfilled)h+='<div class="statrow"><div class="stat"><div class="k">'+(s.type==='away'?'Counts':'Moved')+'</div><div class="v">'+(s.type==='away'?'Full day':num(tonnage(s.entries))+' kg')+'</div></div>';
   if(!s.backfilled)h+='<div class="stat"><div class="k">'+(s.type==='away'?'Mode':'Sets')+'</div><div class="v">'+(s.type==='away'?'Open':s.entries.reduce(function(a,e){return a+e.sets.length},0))+'</div></div></div>';
-  var ups=s.type==='away'?[]:s.entries.filter(function(e){return e.sets.length&&e.sets.every(function(x){return x.r>=8})});
+  var ups=s.type==='away'?[]:s.entries.filter(function(e){return EX[e.exId].kind!=='other'&&e.sets.length&&e.sets.every(function(x){return x.r>=8})});
   if(ups.length)h+='<div class="finishach">Weight up earned &middot; '+ups.map(function(e){return esc(EX[e.exId].name)+' '+dispW(e.exId,e.sets[0].w)+' \u2192 '+dispW(e.exId,Math.round((e.sets[0].w+incOf(e.exId))*10)/10)+' kg'}).join(' &middot; ')+'</div>';
   h+='<button class="btn acc" data-act="summarydone">Done</button></div>';
   return h;
 }
 
+/* ---------------- today ---------------- */
+function rDayBuilder(){
+  var h='<header><div class="brand">F<i>O</i>RGE</div><div class="date">Today only</div></header>';
+  h+='<div class="eyebrow">Make it yours</div><div class="planhero">Strength.<br><span style="color:var(--acc)">Your call.</span></div>';
+  h+='<div class="exsub" style="font-size:15px">Choose the exercises you want for today. Your regular plan stays as it is.</div>';
+  h+='<div class="eyebrow" style="margin:26px 2px 8px">Today&#8217;s exercises &middot; '+dayPick.length+'/6</div>';
+  h+='<div class="planlist">';
+  dayPick.forEach(function(id,i){h+='<div class="planitem"><span>'+esc(EX[id].name)+'</span><button data-act="dayremove" data-index="'+i+'" aria-label="Remove '+esc(EX[id].name)+'">Remove</button></div>'});
+  if(!dayPick.length)h+='<div class="exsub" style="padding:12px 2px">Choose at least one exercise.</div>';
+  h+='</div><div class="eyebrow" style="margin:20px 2px 8px">Add an exercise</div><div class="planchoices">';
+  ORDER.forEach(function(id){if(dayPick.indexOf(id)<0)h+='<button class="chip" data-act="dayadd" data-ex="'+id+'">'+esc(EX[id].name)+'</button>'});
+  h+='</div><input class="notein" id="customexname" maxlength="50" placeholder="Or name your own exercise" aria-label="Custom exercise name">';
+  h+='<button class="btn ghost" data-act="daycustom">Add custom exercise</button>';
+  h+='<div class="planfooter">Custom exercises start at 0 kg. Set the weight when you train. Today only; no change to your weekly program.</div>';
+  h+='<button class="btn acc" data-act="daysave" '+(!dayPick.length?'disabled':'')+'>Use this workout today</button>';
+  h+='<div class="linkrow"><button data-act="daycancel">Cancel</button></div>';
+  return h;
+}
 /* ---------------- today ---------------- */
 function rToday(){
   var h='<header><div class="brand">F<i>O</i>RGE</div><div class="date">'+esc(new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}))+'</div></header>';
@@ -910,6 +943,7 @@ function rToday(){
   var d=new Date().getDay();
   var sched=schedFor(new Date());
   var todayMain=S.sessions.filter(function(s){return s.type==='main'&&dayKey(s.ts)===dayKey(Date.now())});
+  var todayPlan=dayPlanFor(new Date());
   var todayLight=S.sessions.filter(function(s){return s.type==='light'&&dayKey(s.ts)===dayKey(Date.now())});var todayAway=S.sessions.filter(function(s){return s.type==='away'&&dayKey(s.ts)===dayKey(Date.now())});
 
   /* v5.5: offer yesterday's missed workout - alongside today's, never instead of it */
@@ -962,13 +996,14 @@ function rToday(){
     h+='<div class="todayhero">';
     h+='<div class="eyebrow" style="margin:0 3px 2px">Today &middot; '+esc(DAYN[d])+'</div>';
     var tmod=replForDay(new Date());
-    if(tmod)h+='<div class="modnote" style="margin:0 3px 12px;font-size:11px">Modified this week &middot; was '+tmod.was.map(function(id){return esc(EX[id].name)}).join(' + ')+'</div>';
+    if(todayPlan)h+='<div class="modnote" style="margin:0 3px 12px;font-size:11px">Today only &middot; Your regular plan is unchanged</div>';
+    if(tmod&&!todayPlan)h+='<div class="modnote" style="margin:0 3px 12px;font-size:11px">Modified this week &middot; was '+tmod.was.map(function(id){return esc(EX[id].name)}).join(' + ')+'</div>';
     h+='<div class="bigtitle">'+sched.ex.map(function(id){return esc(EX[id].name)}).join('<br>+ ')+'</div>';
     h+='<div class="xlist">';
     sched.ex.forEach(function(id){
       var t=target(id);
       h+='<div class="xrow"><div><div class="xn">'+esc(EX[id].name)+(t.add?'<span class="badge">ADD WEIGHT</span>':'')+'</div>';
-      h+='<div class="xs">'+esc(EX[id].note)+' &middot; rest '+fmtT(S.settings.rest[id])+(EX[id].kind==='bw'?' &middot; '+esc(breakdown(id,t.w)):'')+'</div></div>';
+      h+='<div class="xs">'+esc(EX[id].note)+' &middot; rest '+fmtT(S.settings.rest[id]||180)+(EX[id].kind==='bw'?' &middot; '+esc(breakdown(id,t.w)):'')+'</div></div>';
       h+='<div class="xw"><div class="w">'+dispW(id,t.w)+' <small>'+(EX[id].kind==='db'?'KG /DB':'KG')+'</small></div>';
       h+='<div class="t">'+(t.last?'last '+esc(setsStr(id,t.last.sets))+' kg &middot; '+esc(fmtDate(t.last.ts)):'first session &middot; start here')+'</div></div></div>';
     });
@@ -978,7 +1013,7 @@ function rToday(){
       h+='<div class="upnext">Up next &middot; <b>'+(i===1?'Tomorrow':DAYN[nx.getDay()])+': '+esc(schedObjText(ns))+'</b></div>';
       break;
     }}
-    h+='<div class="linkrow" style="margin-top:2px"><button data-act="replopen" data-day="'+dayKey(Date.now())+'">Replace today&#8217;s exercises &middot; this week only</button></div>';
+    h+=todayPlan?'<div class="linkrow" style="margin-top:2px"><button data-act="dayopen">Edit today</button><button data-act="dayundo">Restore Heavy Bag</button></div>':'<div class="linkrow" style="margin-top:2px"><button data-act="replopen" data-day="'+dayKey(Date.now())+'">Replace today&#8217;s exercises &middot; this week only</button></div>';
     h+='</div>';
   } else if(sched.type==='bag'){
     h+='<div class="eyebrow">Today &middot; conditioning</div>';
@@ -991,7 +1026,7 @@ function rToday(){
     h+='<div class="stepper" style="position:relative;flex:1;background:var(--card2);border-radius:16px;padding:19px 6px 7px;display:flex;align-items:center;justify-content:space-between"><span class="lab" style="position:absolute;top:5px;left:0;right:0;text-align:center;font-size:9.5px;letter-spacing:.18em;color:var(--dim);text-transform:uppercase">Min / round</span><button data-act="lmm" style="flex:none;width:46px;height:48px;border-radius:12px;background:var(--card);border:1px solid var(--line);font-size:22px">&#8722;</button><span class="stepv" style="font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;min-width:50px;text-align:center">'+lightMins+'</span><button data-act="lmp" style="flex:none;width:46px;height:48px;border-radius:12px;background:var(--card);border:1px solid var(--line);font-size:22px">+</button></div>';
     h+='</div>';
     h+='<input class="notein" id="lightnote" placeholder="Note (optional)" value="'+esc(lightNote)+'">';
-    h+='<button class="btn acc" data-act="loglight">Log bag work</button></div>';
+    h+='<button class="btn acc" data-act="loglight">Log bag work</button><div class="linkrow"><button data-act="dayopen">Change today to strength &middot; choose exercises</button></div></div>';
   } else {
     h+='<div class="eyebrow">Today &middot; '+esc(DAYN[d])+'</div>';
     h+='<div class="card" style="text-align:center;padding:40px 20px"><div class="exname">Rest day</div><div class="exsub" style="margin-top:8px">Recovery is part of the program.</div></div>';
@@ -1023,13 +1058,14 @@ function rWeek(){
     var k=dayKey(dt.getTime()),isToday=k===dayKey(Date.now()),future=dt.getTime()>Date.now()&&!isToday;
     var done=S.sessions.some(function(x){return dayKey(x.ts)===k});
     var awayDone=S.sessions.some(function(x){return x.type==='away'&&dayKey(x.ts)===k});
-    var sc=schedFor(dt),mod=replForDay(dt),base=S.schedule[dt.getDay()];
-    h+='<div class="wrow'+(future?' future':'')+(awayDone?' awaydone':'')+'"><span class="wd">'+DAYS[i]+'</span><span class="wc">'+esc(schedObjText(sc))+(sc.type==='lifts'?'<br><small>'+sc.ex.map(function(id){return fmtT(S.settings.rest[id])}).join(' / ')+' rests</small>':'')+(mod?'<br><span class="modnote">Modified this week</span>':'')+'</span>';
+    var sc=schedFor(dt),mod=replForDay(dt),one=dayPlanFor(dt),base=S.schedule[dt.getDay()];
+    h+='<div class="wrow'+(future?' future':'')+(awayDone?' awaydone':'')+'"><span class="wd">'+DAYS[i]+'</span><span class="wc">'+esc(schedObjText(sc))+(sc.type==='lifts'?'<br><small>'+sc.ex.map(function(id){return fmtT(S.settings.rest[id]||180)}).join(' / ')+' rests</small>':'')+(one?'<br><span class="modnote">Today only</span>':mod?'<br><span class="modnote">Modified this week</span>':'')+'</span>';
     if(isToday)h+='<span class="tag">TODAY</span>';
     if(done)h+='<span class="tick">&#10003;</span>';
+    if(isToday&&base.type==='bag'&&!done)h+='<button class="daybtn" data-act="dayopen">'+(one?'Edit':'Change')+'</button>';
     var past=!isToday&&!future;
     if(past&&backfillable(k))h+='<button class="daybtn" data-act="bfopen" data-day="'+k+'">Add workout</button>';
-    else if(base.type==='lifts'&&!past){
+    else if(base.type==='lifts'&&!past&&!one){
       if(mod)h+='<button class="daybtn" data-act="replundo" data-day="'+k+'">Undo</button>';
       else if(!done)h+='<button class="daybtn" data-act="replopen" data-day="'+k+'">Replace</button>';
     }
@@ -1286,7 +1322,7 @@ function rSettings(){
   h+='<div class="field"><div><div class="fk">Reset</div><div class="fs">Wipe all data on this device</div></div>';
   h+='<button class="chip" data-act="reset">Reset</button></div>';
   h+='</div>';
-  h+='<div class="chart-msg" style="padding-top:26px">Data lives on this phone only, in the browser.<br>Hit 8 on every set and the weight goes up.<br><span style="opacity:.5">FORGE v9</span></div>';
+  h+='<div class="chart-msg" style="padding-top:26px">Data lives on this phone only, in the browser.<br>Hit 8 on every set and the weight goes up.<br><span style="opacity:.5">FORGE v10</span></div>';
   return h;
 }
 
@@ -1329,7 +1365,7 @@ function render(){
   } else if(S.summary) {
     html=rWorkoutSummary();
   } else {
-    html=(S.view==='mig52'?rMig52():S.view==='away'?rAwaySetup():S.view==='today'?rToday():S.view==='week'?rWeek():S.view==='history'?rHistory():rSettings());
+    html=(S.view==='mig52'?rMig52():S.view==='daybuild'?rDayBuilder():S.view==='away'?rAwaySetup():S.view==='today'?rToday():S.view==='week'?rWeek():S.view==='history'?rHistory():rSettings());
   }
   app.innerHTML=html+(S.draft||S.summary?'':bfSheet())+celebHtml();
   document.body.classList.toggle('workout',!!S.draft||!!S.summary);
@@ -1351,6 +1387,23 @@ document.addEventListener('click',function(e){
   if(a==='celebnext'){S.celebQueue.shift();save();render();return}
   if(a==='summarydone'){S.summary=null;save();render();return}
   if(a==='tab'){S.view=b.dataset.v;save();render();return}
+  if(a==='dayopen'){
+    if(S.sessions.some(function(x){return x.type==='main'&&dayKey(x.ts)===dayKey(Date.now())}))return;
+    var old=dayPlanFor(new Date());dayPick=old?old.ex.slice():[];S.view='daybuild';save();render();return;
+  }
+  if(a==='dayadd'){if(dayPick&&dayPick.length<6&&EX[ex]&&dayPick.indexOf(ex)<0){dayPick.push(ex);render()}return}
+  if(a==='dayremove'){if(dayPick)dayPick.splice(+b.dataset.index,1);render();return}
+  if(a==='daycustom'){
+    var el=document.getElementById('customexname'),name=el&&el.value.trim().replace(/\s+/g,' ');
+    if(!name||!dayPick||dayPick.length>=6)return;
+    if(Object.keys(EX).some(function(id){return EX[id].name.toLowerCase()===name.toLowerCase()})){el.setCustomValidity('Exercise already exists');el.reportValidity();return}
+    var id='custom_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6);
+    S.customEx[id]={name:name};EX[id]={name:name,kind:'other',inc:2.5,seed:0,note:'Your exercise'};
+    dayPick.push(id);save();render();return;
+  }
+  if(a==='daysave'){if(dayPick&&validDayExercises(dayPick)){S.dayPlans[dayKey(Date.now())]={type:'lifts',ex:dayPick.slice()};dayPick=null;S.view='today';save();render()}return}
+  if(a==='daycancel'){dayPick=null;S.view='today';save();render();return}
+  if(a==='dayundo'){delete S.dayPlans[dayKey(Date.now())];save();render();return}
   if(a==='start'){startDraft();save();render();return}if(a==='awayopen'){startAwayBuilder();return}if(a==='awaycancel'){S.view='today';save();render();return}if(a==='awaystart'){startAway();return}if(a==='awayfinish'){finishAway();return}if(a==='replopen'){var rk=b.dataset.day,rd=parseDayKey(rk);if(S.schedule[rd.getDay()].type==='lifts'){var cur=schedFor(rd);replPick={day:rk,ex:cur.ex.slice()};S.view='week';save();render()}return}
   if(a==='replslot'){if(replPick){var rs=+b.dataset.slot,rx=b.dataset.ex;if(rx===replPick.ex[1-rs])replPick.ex[1-rs]=replPick.ex[rs];replPick.ex[rs]=rx;render()}return}
   if(a==='replapply'){if(replPick){var bs=S.schedule[parseDayKey(replPick.day).getDay()].ex;if(bs[0]===replPick.ex[0]&&bs[1]===replPick.ex[1]){replPick=null;render();return}replaceWeekDay(replPick.day,replPick.ex);render()}return}
