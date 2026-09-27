@@ -484,6 +484,8 @@ function urlB64ToUint8Array(base64String){
   return out;
 }
 if('serviceWorker' in navigator){navigator.serviceWorker.register('/forge/sw.js',{scope:'/forge/'}).catch(function(){})}
+/* The old root worker served push only. Retire it after the nested worker is registered; never touch Sunny's scope. */
+if('serviceWorker' in navigator){navigator.serviceWorker.getRegistration('/').then(function(old){if(old&&old.scope===location.origin+'/'&&old.active&&new URL(old.active.scriptURL).pathname==='/sw.js')old.unregister()}).catch(function(){})}
 function schedulePush(endsAt){
   if(!pushOK())return;
   (async function(){
