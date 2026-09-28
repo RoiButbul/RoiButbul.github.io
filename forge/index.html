@@ -313,6 +313,7 @@ async function syncForge(){
       }
       if(hasLocal&&!remote.revision&&!syncMeta.revision){syncMeta.pending=true;localStorage.setItem(FORGE_SYNC_META,JSON.stringify(syncMeta))}
     }
+    if(!remote.revision&&syncMeta.revision&&looksLikeBlankForge()&&!syncMeta.pending){syncMeta.revision=null;localStorage.setItem(FORGE_SYNC_META,JSON.stringify(syncMeta));syncStatus='No workout data to back up yet.';if(S.view==='settings')render();return}
     if(remote.revision!==syncMeta.revision){
       if(syncMeta.pending||hasLocal&&syncMeta.revision===null||S.draft){syncStatus='Cloud changed elsewhere. This device stays unchanged. Export its data before merging.';if(S.view==='settings')render();return}
       if(remote.revision){
@@ -1735,4 +1736,4 @@ render();
 bootReady=true;setTimeout(syncForge,200);
 </script>
 </body>
-  </html>
+       </html>
