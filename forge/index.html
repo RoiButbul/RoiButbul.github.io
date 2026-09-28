@@ -287,6 +287,49 @@ var VAPID_PUBLIC='BFCyyYGhqex5y0MwhbJObDded2KpHlPcnIUu6DWtsAFg9C0Vz14EmThbJH9HOd
 
 /* ---------------- state ---------------- */
 var LS='forge.v1';
+var FORGE_SYNC_URL='https://sunny-forge-sync.roi-butbul22.workers.dev/v1/forge-50e2a751e42d44bd84484ea2e1601697';
+var FORGE_SYNC_META='forge.sync.v1';
+var hadForgeAtBoot=localStorage.getItem('forge.v1')!==null,bootReady=false;
+var syncMeta;try{syncMeta=JSON.parse(localStorage.getItem(FORGE_SYNC_META))||{revision:null,pending:false}}catch(e){syncMeta={revision:null,pending:false}}
+var syncReady=false,syncBusy=false,syncTimer=null,syncStatus='Checking cloud backup…';
+function syncMark(){syncMeta.pending=true;localStorage.setItem(FORGE_SYNC_META,JSON.stringify(syncMeta));if(syncReady){clearTimeout(syncTimer);syncTimer=setTimeout(syncForge,1500)}}
+async function syncForge(){
+  if(syncBusy||!navigator.onLine)return;
+  syncBusy=true;
+  try{
+    var response=await fetch(FORGE_SYNC_URL,{cache:'no-store'});if(!response.ok)throw Error('Cloud unavailable');
+    var remote=await response.json();
+    if(remote.revision&&(!remote.data||!Array.isArray(remote.data.sessions)||!remote.data.settings))throw Error('Invalid cloud copy');
+    var hasLocal=hadForgeAtBoot||bootReady&&syncMeta.pending;
+    if(!syncReady){
+      syncReady=true;
+      if(!hasLocal&&!syncMeta.pending&&remote.revision){
+        localStorage.setItem(LS,JSON.stringify(remote.data));syncMeta={revision:remote.revision,pending:false};
+        localStorage.setItem(FORGE_SYNC_META,JSON.stringify(syncMeta));location.reload();return;
+      }
+      if(hasLocal&&!remote.revision&&!syncMeta.revision){syncMeta.pending=true;localStorage.setItem(FORGE_SYNC_META,JSON.stringify(syncMeta))}
+    }
+    if(remote.revision!==syncMeta.revision){
+      if(syncMeta.pending||hasLocal&&syncMeta.revision===null||S.draft){syncStatus='Cloud changed elsewhere. This device stays unchanged. Export its data before merging.';if(S.view==='settings')render();return}
+      if(remote.revision){
+        localStorage.setItem(LS,JSON.stringify(remote.data));syncMeta={revision:remote.revision,pending:false};
+        localStorage.setItem(FORGE_SYNC_META,JSON.stringify(syncMeta));location.reload();return;
+      }
+      syncStatus='Cloud copy changed. This device stays unchanged. Export a backup.';if(S.view==='settings')render();return;
+    }
+    if(!syncMeta.pending){syncStatus=hasLocal?'Cloud backup up to date.':'No data to back up yet.';if(S.view==='settings')render();return}
+    var snapshot=JSON.stringify(S),payload={baseRevision:syncMeta.revision,data:JSON.parse(snapshot)};
+    var put=await fetch(FORGE_SYNC_URL,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(put.status===409){syncStatus='Cloud changed elsewhere. This device stays unchanged. Export a backup before merging.';if(S.view==='settings')render();return}
+    if(!put.ok)throw Error('Cloud backup failed');
+    var saved=await put.json();syncMeta={revision:saved.revision,pending:JSON.stringify(S)!==snapshot};localStorage.setItem(FORGE_SYNC_META,JSON.stringify(syncMeta));
+    syncStatus=syncMeta.pending?'Uploading latest changes…':'Cloud backup up to date.';if(S.view==='settings')render();if(syncMeta.pending)setTimeout(syncForge,1500);
+  }catch(e){syncStatus='Saved on this device; cloud backup will retry when connected.';if(S.view==='settings')render()}
+  finally{syncBusy=false}
+}
+window.addEventListener('online',syncForge);window.addEventListener('focus',syncForge);
+setInterval(function(){if(document.visibilityState==='visible')syncForge()},60000);
+
 var EX={
   squat:   {name:'Squat',             kind:'bar', inc:2.5, seed:65, note:'RIR 1-2 per set'},
   pullup:  {name:'Weighted Pull-Up',  kind:'bw',  inc:2.5, add:10,  note:'to failure is fine'},
@@ -334,7 +377,7 @@ if(S.view==='daybuild')S.view='today'; /* an unfinished one-day edit is not pers
 if(typeof S.shift!=='undefined')delete S.shift; /* v5.5: shift model removed - makeup is same-day, the program never moves */
 if(!S.releasedDays)S.releasedDays={}; /* v5.4: missed days the user chose to drop */
 if(S.draft&&!S.draft.queue){S.draft=null;S.timer=null} /* v2 draft shape: discard */
-function save(){ localStorage.setItem(LS,JSON.stringify(S)); }
+function save(){ localStorage.setItem(LS,JSON.stringify(S));if(bootReady)syncMark(); }
 
 var histEx='squat',editSession=null;
 var lightRounds=5, lightMins=3, lightNote='';
@@ -1337,6 +1380,8 @@ function rSettings(){
   h+='<button class="chip" data-act="notif">Enable</button></div></div>';
 
   h+='<div class="eyebrow">Data</div><div class="card">';
+  h+='<div class="chart-msg">Backs up to cloud when online. No sign-in: anyone with the app endpoint can read or replace this copy. Keep exports before switching phones.</div>';
+  h+='<div class="field"><div class="fk">Cloud status</div><div class="fs">'+esc(syncStatus)+'</div><button class="chip" data-act="syncforge">Sync now</button></div>';
   h+='<div class="field"><div><div class="fk">Export</div><div class="fs">Download everything as JSON</div></div>';
   h+='<button class="chip" data-act="export">Export</button></div>';
   h+='<div class="field"><div><div class="fk">Import</div><div class="fs">Restore from a FORGE export file</div></div>';
@@ -1344,7 +1389,7 @@ function rSettings(){
   h+='<div class="field"><div><div class="fk">Reset</div><div class="fs">Wipe all data on this device</div></div>';
   h+='<button class="chip" data-act="reset">Reset</button></div>';
   h+='</div>';
-  h+='<div class="chart-msg" style="padding-top:26px">Data lives on this phone only, in the browser.<br>Hit 8 on every set and the weight goes up.<br><span style="opacity:.5">FORGE v10</span></div>';
+  h+='<div class="chart-msg" style="padding-top:26px">Data stays on this phone and backs up to Cloudflare when online.<br>Hit 8 on every set and the weight goes up.<br><span style="opacity:.5">FORGE v10</span></div>';
   return h;
 }
 
@@ -1432,6 +1477,7 @@ document.addEventListener('click',function(e){
     var summaryIndex=S.sessions.findIndex(function(x){return x.type==='main'&&x.ts===S.summary.ts&&x.startAt===S.summary.startAt});
     if(summaryIndex>=0){editSession=summaryIndex;S.summary=null;save();render()}return;
   }
+  if(a==='syncforge'){syncForge();return}
   if(a==='edithistory'){S.view='history';save();render();return}
   if(a==='bulkweight'){
     if(!EX[ex])return;
@@ -1657,7 +1703,7 @@ document.addEventListener('click',function(e){
     setTimeout(function(){URL.revokeObjectURL(u)},4000);return;
   }
   if(a==='reset'){
-    if(confirm('Wipe ALL training data on this device?')){localStorage.removeItem(LS);S={settings:{bw:75,rest:Object.assign({},REST_DEF)},schedule:JSON.parse(JSON.stringify(SCHED_DEF)),sessions:[],draft:null,timer:null,overrides:{},streak:{cur:0,best:0,freezes:0,lastEarned:0,lastCountedK:null,lastCountedTs:0,pwK:null},fulfilledDays:{},celebQueue:[],view:'today'};render()}
+    if(confirm('Wipe ALL training data on this device and replace its cloud backup when online?')){localStorage.removeItem(LS);S={settings:{bw:75,rest:Object.assign({},REST_DEF)},schedule:JSON.parse(JSON.stringify(SCHED_DEF)),sessions:[],draft:null,timer:null,overrides:{},streak:{cur:0,best:0,freezes:0,lastEarned:0,lastCountedK:null,lastCountedTs:0,pwK:null},fulfilledDays:{},celebQueue:[],view:'today'};save();render()}
     return;
   }
 });
@@ -1670,7 +1716,7 @@ document.getElementById('importfile').addEventListener('change',function(e){
     try{
       var data=JSON.parse(r.result);
       if(!data||!Array.isArray(data.sessions)||!data.settings)throw new Error('not a FORGE export');
-      localStorage.setItem(LS,JSON.stringify(data));
+      localStorage.setItem(LS,JSON.stringify(data));syncMark();
       location.reload();
     }catch(err){alert('Import failed: '+err.message)}
   };
@@ -1682,6 +1728,7 @@ migrate52();
 evalStreak();
 if(schedFor(new Date()).type==='rest')fulfillToday();
 render();
+bootReady=true;setTimeout(syncForge,200);
 </script>
 </body>
   </html>
